@@ -1,6 +1,6 @@
 description: Ultralytics best model trained on data.yaml
 author: Ultralytics
-date: '2026-04-14T04:25:08.504103'
+date: '2026-04-14T15:44:52.966318'
 version: 8.4.37
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
@@ -11,7 +11,15 @@ imgsz:
 - 1024
 - 1024
 names:
-  0: fore
+  0: acne
+  1: dark circle
+  2: darkspot
+  3: dry
+  4: normal skin
+  5: oily
+  6: pores
+  7: skin redness
+  8: wrinkle
 args:
   batch: 1
   half: false
