@@ -1,224 +1,20 @@
-// "use client";
-
-// import { useState, useEffect, useCallback } from "react";
-// import { StageCard } from "@/components/StageCard";
-// import { AnalysisControls } from "@/components/AnalysisControls";
-// import { useFaceLandmarker } from "@/hooks/useFaceLandmarker";
-// import { useSkinAnalysis } from "@/hooks/useSkinAnalysis";
-// import type { AnalysisResult } from "@/lib/analysisEngine";
-
-// interface StoredData {
-//   imageDataURL: string;
-//   analysis: AnalysisResult;
-//   landmarks: any;
-// }
-
-// export default function Home() {
-//   const { detectLandmarks, loading: faceLoading } = useFaceLandmarker();
-//   const { analysis, isAnalyzing, runAnalysis } = useSkinAnalysis();
-
-//   const [currentImage, setCurrentImage] = useState<HTMLImageElement | null>(
-//     null,
-//   );
-//   const [currentLandmarks, setCurrentLandmarks] = useState<any>(null);
-//   const [stages, setStages] = useState({
-//     now: {
-//       image: null as HTMLImageElement | null,
-//       analysis: null as AnalysisResult | null,
-//       landmarks: null as any,
-//     },
-//     short: {
-//       image: null as HTMLImageElement | null,
-//       analysis: null as AnalysisResult | null,
-//       landmarks: null as any,
-//     },
-//     long: {
-//       image: null as HTMLImageElement | null,
-//       analysis: null as AnalysisResult | null,
-//       landmarks: null as any,
-//     },
-//   });
-
-//   // Load stored stages from localStorage on mount
-//   useEffect(() => {
-//     const loadStage = async (
-//       key: string,
-//     ): Promise<{
-//       image: HTMLImageElement | null;
-//       analysis: any;
-//       landmarks: any;
-//     }> => {
-//       const raw = localStorage.getItem(key);
-//       if (!raw) return { image: null, analysis: null, landmarks: null };
-//       try {
-//         const data: StoredData = JSON.parse(raw);
-//         const img = new Image();
-//         const imgPromise = new Promise<HTMLImageElement>((resolve) => {
-//           img.onload = () => resolve(img);
-//           img.src = data.imageDataURL;
-//         });
-//         const imageEl = await imgPromise;
-//         return {
-//           image: imageEl,
-//           analysis: data.analysis,
-//           landmarks: data.landmarks,
-//         };
-//       } catch {
-//         return { image: null, analysis: null, landmarks: null };
-//       }
-//     };
-
-//     Promise.all([
-//       loadStage("dermi_now"),
-//       loadStage("dermi_short"),
-//       loadStage("dermi_long"),
-//     ]).then(([now, short, long]) => {
-//       setStages({ now, short, long });
-//     });
-//   }, []);
-
-//   const handleImageUpload = useCallback(
-//     (file: File) => {
-//       const reader = new FileReader();
-//       reader.onload = (e) => {
-//         const img = new Image();
-//         img.onload = () => {
-//           // Small delay to ensure the image is fully ready for MediaPipe
-//           setTimeout(() => {
-//             setCurrentImage(img);
-//             setCurrentLandmarks(null);
-//             if (detectLandmarks) {
-//               const lm = detectLandmarks(img);
-//               setCurrentLandmarks(lm);
-//             }
-//           }, 50);
-//         };
-//         img.src = e.target?.result as string;
-//       };
-//       reader.readAsDataURL(file);
-//     },
-//     [detectLandmarks],
-//   );
-
-//   const handleAnalyze = useCallback(async () => {
-//     if (!currentImage) return;
-//     const landmarks = detectLandmarks ? detectLandmarks(currentImage) : null;
-//     setCurrentLandmarks(landmarks);
-//     await runAnalysis(currentImage, landmarks);
-//   }, [currentImage, detectLandmarks, runAnalysis]);
-
-//   const handleSave = useCallback(
-//     (stage: "now" | "short" | "long") => {
-//       if (!currentImage || !analysis) {
-//         alert("Please upload and run analysis first");
-//         return;
-//       }
-//       // Save image as dataURL
-//       const canvas = document.createElement("canvas");
-//       canvas.width = currentImage.width;
-//       canvas.height = currentImage.height;
-//       const ctx = canvas.getContext("2d");
-//       ctx?.drawImage(currentImage, 0, 0);
-//       const imageDataURL = canvas.toDataURL("image/png");
-//       const storedData: StoredData = {
-//         imageDataURL,
-//         analysis,
-//         landmarks: currentLandmarks,
-//       };
-//       const key =
-//         stage === "now"
-//           ? "dermi_now"
-//           : stage === "short"
-//             ? "dermi_short"
-//             : "dermi_long";
-//       localStorage.setItem(key, JSON.stringify(storedData));
-//       setStages((prev) => ({
-//         ...prev,
-//         [stage]: { image: currentImage, analysis, landmarks: currentLandmarks },
-//       }));
-//       alert(`Saved to ${stage.toUpperCase()} stage`);
-//     },
-//     [currentImage, analysis, currentLandmarks],
-//   );
-
-//   const handleReset = () => {
-//     localStorage.removeItem("dermi_now");
-//     localStorage.removeItem("dermi_short");
-//     localStorage.removeItem("dermi_long");
-//     window.location.reload();
-//   };
-
-//   return (
-//     <main className="max-w-7xl mx-auto px-4 py-6">
-//       <div className="text-center mb-6">
-//         <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">
-//           DermiScan AI
-//         </h1>
-//         <p className="text-slate-500 mt-1">
-//           Non-diagnostic skin health analysis with facial overlays
-//         </p>
-//         <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mt-4 text-sm text-amber-800 rounded max-w-2xl mx-auto">
-//           ⚠️ For research &amp; educational use only. Not a medical diagnosis.
-//         </div>
-//       </div>
-
-//       <AnalysisControls
-//         onImageUpload={handleImageUpload}
-//         onAnalyze={handleAnalyze}
-//         isAnalyzing={isAnalyzing}
-//         hasImage={!!currentImage}
-//         onSave={handleSave}
-//         onReset={handleReset}
-//       />
-
-//       {faceLoading && (
-//         <div className="text-center text-sm text-slate-400">
-//           Loading face detector...
-//         </div>
-//       )}
-
-//       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-//         <StageCard
-//           title="📌 NOW"
-//           subtitle="Current condition"
-//           titleColor="text-blue-800"
-//           image={stages.now.image}
-//           analysis={stages.now.analysis}
-//           landmarks={stages.now.landmarks}
-//         />
-//         <StageCard
-//           title="📈 SHORT TERM"
-//           subtitle="Texture improvement"
-//           titleColor="text-emerald-800"
-//           image={stages.short.image}
-//           analysis={stages.short.analysis}
-//           landmarks={stages.short.landmarks}
-//         />
-//         <StageCard
-//           title="🏆 LONG TERM"
-//           subtitle="Cleared, even skin"
-//           titleColor="text-amber-800"
-//           image={stages.long.image}
-//           analysis={stages.long.analysis}
-//           landmarks={stages.long.landmarks}
-//         />
-//       </div>
-//     </main>
-//   );
-// }
-
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CanvasOverlay } from '@/components/CanvasOverlay';
 import { useFaceLandmarker } from '@/hooks/useFaceLandmarker';
 import { extractFaceMesh } from '@/lib/analysisEngine';
+import { useYolo, BoundingBox } from '@/hooks/useYolo';
 
 export default function Home() {
   const { detectLandmarks, loading: faceLoading, error: faceError } = useFaceLandmarker();
+  const { detectAcne, isModelLoading } = useYolo();
+
   const [currentImage, setCurrentImage] = useState<HTMLImageElement | null>(null);
   const [meshLandmarks, setMeshLandmarks] = useState<{ x: number; y: number }[] | null>(null);
+  const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
 
   const handleImageUpload = useCallback((file: File) => {
     const reader = new FileReader();
@@ -226,69 +22,138 @@ export default function Home() {
       const img = new Image();
       img.onload = () => {
         setCurrentImage(img);
-        setMeshLandmarks(null); // clear previous mesh
+        setMeshLandmarks(null);
+        setBoxes([]);
+        setHasRunAnalysis(false);
       };
       img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   }, []);
 
-  const handleDetectMesh = useCallback(async () => {
-    if (!currentImage || !detectLandmarks) return;
+  const handleAnalysis = useCallback(async () => {
+    if (!currentImage) return;
     setIsDetecting(true);
-    // Small delay to ensure image is fully ready
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const rawLandmarks = detectLandmarks(currentImage);
-    if (rawLandmarks) {
-      const mesh = extractFaceMesh(currentImage.width, currentImage.height, rawLandmarks);
-      setMeshLandmarks(mesh.landmarks);
-    } else {
-      alert('No face detected. Please use a clear, front-facing photo.');
-      setMeshLandmarks(null);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    let currentLandmarks = null;
+
+    if (detectLandmarks) {
+      const rawLandmarks = detectLandmarks(currentImage);
+      if (rawLandmarks) {
+        const mesh = extractFaceMesh(currentImage.width, currentImage.height, rawLandmarks);
+        currentLandmarks = mesh.landmarks;
+        setMeshLandmarks(currentLandmarks);
+      }
     }
+
+    const detectedBoxes = await detectAcne(currentImage, currentLandmarks);
+    setBoxes(detectedBoxes);
+    
+    setHasRunAnalysis(true);
     setIsDetecting(false);
-  }, [currentImage, detectLandmarks]);
+  }, [currentImage, detectLandmarks, detectAcne]);
+
+  // Derived logic for Severity Scoring
+  const severity = useMemo(() => {
+    const count = boxes.length;
+    if (count === 0) return { label: 'Clear', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    if (count <= 3) return { label: 'Mild', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    if (count <= 8) return { label: 'Moderate', color: 'bg-orange-100 text-orange-800 border-orange-200' };
+    return { label: 'Severe', color: 'bg-red-100 text-red-800 border-red-200' };
+  }, [boxes]);
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-2">Face Mesh Tester</h1>
-      <p className="text-center text-slate-500 mb-6">Upload a photo to see MediaPipe face landmarks</p>
-
-      <div className="flex flex-wrap gap-4 justify-center mb-8">
-        <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full cursor-pointer">
-          📸 Upload Photo
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-          />
-        </label>
-        <button
-          onClick={handleDetectMesh}
-          disabled={!currentImage || isDetecting || faceLoading}
-          className={`px-5 py-2 rounded-full ${
-            currentImage && !isDetecting && !faceLoading
-              ? 'bg-teal-600 hover:bg-teal-700 text-white'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {isDetecting ? '🔬 Detecting...' : '🔍 Detect Face Mesh'}
-        </button>
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      {/* Header */}
+      <div className="text-center mb-10">
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">DermiScan AI</h1>
+        <p className="text-lg text-slate-500">Local, privacy-first clinical skin analysis.</p>
       </div>
 
-      {faceLoading && <div className="text-center text-slate-500">Loading face detector...</div>}
-      {faceError && <div className="text-center text-red-600">Error: {faceError}</div>}
-
-      <div className="bg-white rounded-2xl shadow-lg p-4">
-        <CanvasOverlay image={currentImage} landmarks={meshLandmarks} />
-      </div>
-
-      {meshLandmarks && (
-        <div className="text-center text-green-600 mt-4">
-          ✅ Face mesh detected with {meshLandmarks.length} landmarks
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        
+        {/* Left Column: Image & Canvas (Spans 7 cols) */}
+        <div className="md:col-span-7 space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg p-2 border border-slate-100 relative">
+            <CanvasOverlay image={currentImage} landmarks={meshLandmarks} boxes={boxes} />
+            
+            {/* Absolute positioning for loading overlay */}
+            {isDetecting && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                <div className="text-center font-semibold text-indigo-600 animate-pulse">
+                  Processing Neural Networks...
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Right Column: Controls & Results (Spans 5 cols) */}
+        <div className="md:col-span-5 space-y-6">
+          
+          {/* Controls Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Analysis Controls</h2>
+            
+            <div className="flex flex-col gap-3">
+              <label className="w-full text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl cursor-pointer transition-colors border border-slate-300">
+                📸 Upload Face Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                />
+              </label>
+              
+              <button
+                onClick={handleAnalysis}
+                disabled={!currentImage || isDetecting || faceLoading || isModelLoading}
+                className={`w-full py-3 rounded-xl font-bold shadow-sm transition-all ${
+                  currentImage && !isDetecting && !faceLoading && !isModelLoading
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {isDetecting ? 'Analyzing...' : 'Run Scan'}
+              </button>
+            </div>
+          </div>
+
+          {/* Results Dashboard (Only shows after analysis runs) */}
+          {hasRunAnalysis && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <h2 className="text-lg font-bold text-slate-800 mb-4">Diagnostics Report</h2>
+              
+              <div className="space-y-4">
+                {/* Severity Badge */}
+                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                  <span className="text-slate-600 font-medium">Estimated Severity</span>
+                  <span className={`px-4 py-1.5 rounded-full font-bold border ${severity.color}`}>
+                    {severity.label}
+                  </span>
+                </div>
+
+                {/* Data Points */}
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Total Lesions Detected</span>
+                  <span className="text-xl font-black text-slate-800">{boxes.length}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Face Map Registered</span>
+                  <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    {meshLandmarks ? 'Successful' : 'Failed'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
     </main>
   );
 }
