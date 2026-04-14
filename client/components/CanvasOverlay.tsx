@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { FACEMESH_TESSELATION } from '@mediapipe/face_mesh'; // optional, but we'll define our own
 
-// Predefined connections for MediaPipe Face Mesh (468 landmarks)
-// This is a subset of the full tesselation; the complete list has ~1000 connections.
-// For brevity, we use a compact set that still shows the face structure.
+// MediaPipe Face Mesh Connections
 const FACE_CONNECTIONS = [
   // Lips
   [61, 146], [146, 91], [91, 181], [181, 84], [84, 17], [17, 314], [314, 405], [405, 320],
@@ -33,9 +30,17 @@ const FACE_CONNECTIONS = [
 interface CanvasOverlayProps {
   image: HTMLImageElement | null;
   landmarks: { x: number; y: number }[] | null;
+  boxes?: { x: number; y: number; w: number; h: number; score: number }[];
 }
 
-export function CanvasOverlay({ image, landmarks }: CanvasOverlayProps) {
+// Helper to color-code based on confidence
+function getColorForScore(score: number) {
+  if (score > 0.40) return '#ef4444'; // Bright Red (High Confidence)
+  if (score > 0.20) return '#f97316'; // Orange (Medium Confidence)
+  return '#eab308';                   // Yellow (Low Confidence/Suspicious)
+}
+
+export function CanvasOverlay({ image, landmarks, boxes }: CanvasOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -48,38 +53,42 @@ export function CanvasOverlay({ image, landmarks }: CanvasOverlayProps) {
     canvas.height = image.height;
     ctx.drawImage(image, 0, 0, image.width, image.height);
 
-    if (!landmarks || landmarks.length === 0) return;
-
-    // Draw connections (mesh)
-    ctx.beginPath();
-    ctx.strokeStyle = '#00e0ff';
-    ctx.lineWidth = 1.2;
-    for (const [start, end] of FACE_CONNECTIONS) {
-      const p1 = landmarks[start];
-      const p2 = landmarks[end];
-      if (p1 && p2) {
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
+    // 1. Draw Face Mesh Connections (Subtle)
+    if (landmarks && landmarks.length > 0) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0, 224, 255, 0.25)'; // Highly transparent to not distract
+      ctx.lineWidth = 1;
+      for (const [start, end] of FACE_CONNECTIONS) {
+        const p1 = landmarks[start];
+        const p2 = landmarks[end];
+        if (p1 && p2) {
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
       }
     }
 
-    // Draw landmark points
-    ctx.fillStyle = '#ffd966';
-    for (const pt of landmarks) {
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 2, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-  }, [image, landmarks]);
+    // 2. Draw YOLO Bounding Boxes
+    if (boxes && boxes.length > 0) {
+      for (const box of boxes) {
+        const boxColor = 'yellow';
 
-  if (!image) return <div className="bg-gray-100 rounded-2xl flex items-center justify-center h-80">No image</div>;
+        // Draw the box with thin border
+        ctx.strokeStyle = boxColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(box.x, box.y, box.w, box.h);
+      }
+    }
+  }, [image, landmarks, boxes]);
+
+  if (!image) return <div className="bg-slate-100 rounded-2xl flex items-center justify-center h-full w-full text-slate-400 font-medium border-2 border-dashed border-slate-300">No image uploaded</div>;
 
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-auto rounded-2xl shadow-md"
+      className="w-full h-auto rounded-xl shadow-inner border border-slate-200"
       style={{ maxWidth: '100%', aspectRatio: 'auto' }}
     />
   );
